@@ -1,14 +1,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFSIZE 256
+#define BUFFSIZE 128
 enum req_type { DNS=1, QUERY, QUIT, ERR};
 
 
@@ -60,7 +59,7 @@ void Server_Request_Procedure(int sockfd) {
 		}
 		
 		// get status code
-		if(read(sockfd, str_buf, BUFFSIZE) < 0) {
+		if(read(sockfd, str_buf, 2) < 0) {
 			ERR_EXIT("reading from socket");
 		}
 		sscanf(str_buf, "%d", &status);
@@ -97,7 +96,7 @@ void dns(int sockfd, char *str_buf) {
 	if(write(sockfd, str_buf, strlen(str_buf)+1) < 0) {
 		ERR_EXIT("writting to socket");
 	}
-
+	// Domain name
 	if(read(sockfd, str_buf, BUFFSIZE) < 0) {
 		ERR_EXIT("reading from socket");
 	}

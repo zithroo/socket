@@ -1,14 +1,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <stdint.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <netdb.h>
+
 
 #define ERR_EXIT(a) do { perror(a); exit(1); } while(0)
-#define BUFFSIZE 256
+#define BUFFSIZE 128
 enum req_type { DNS=1, QUERY, QUIT, ERR};
 
 void handle_client(int connfd);
@@ -57,10 +58,9 @@ int main () {
 void handle_client(int connfd) {
 	char str_buf[BUFFSIZE];
 	int requirement;
-	
+	memset(str_buf, 0, sizeof(str_buf));
+	requirement = 4;
 	while(1) {
-		memset(str_buf, 0, sizeof(str_buf));
-		requirement = 4;
 		strncpy(str_buf, "What's your requirement? 1.DNS 2.QUERY 3.QUIT : ", BUFFSIZE-1);
 		if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 			ERR_EXIT("writting to socket");
@@ -81,9 +81,11 @@ void handle_client(int connfd) {
 		case DNS:
 			handle_DNS(connfd, str_buf);
 		break;
+
 		case QUERY:
 			handle_QUERY(connfd, str_buf);
 		break;
+		
 		case QUIT:
 			handle_QUIT(connfd, str_buf);
 			return;
@@ -93,8 +95,11 @@ void handle_client(int connfd) {
 			handle_ERR(connfd, str_buf);
 		break;
 		}
+		// Prevent server write -> read when client read (race)
+		// But there is always possible that delay > 0.3 sec QQ
+		sleep(0.3);
+		printf("done\n");
 	}
-
 }
 
 void handle_DNS(int connfd, char *str_buf) {
@@ -114,7 +119,29 @@ void handle_DNS(int connfd, char *str_buf) {
 	}
 	printf("Request: url = %s\n", str_buf);
 
-	strncpy(str_buf, "address get from domain name : \n", BUFFSIZE-1);
+	struct addrinfo hints, *p, *listp;
+	int status, flags;
+	char domain[BUFFSIZE];
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	if((status = getaddrinfo(str_buf, NULL, &hints, &listp)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+		strncpy(str_buf, "No such DNS\n", BUFFSIZE-1);
+		if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
+			ERR_EXIT("writing to socket");
+		}
+		return;
+	}
+	flags = NI_NUMERICHOST;
+	for(p = listp; p; p = p->ai_next) {
+		getnameinfo(p->ai_addr, p->ai_addrlen, domain, BUFFSIZE, NULL, 0, flags);
+		printf("%s\n", domain);
+	}
+
+	freeaddrinfo(listp);
+
+	sprintf(str_buf, "address get from domain name : %s\n", domain);
 	if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 		ERR_EXIT("writting to socket");
 	}
