@@ -130,5 +130,5 @@ void quit(int sockfd, char *str_buf) {
 }
 
 void err(int sockfd, char *str_buf) {
-	printf("Reject by server : err\n");
+	printf("Reject by server : err\n\n");
 }

@@ -127,7 +127,7 @@ void handle_DNS(int connfd, char *str_buf) {
 	hints.ai_socktype = SOCK_STREAM;
 	if((status = getaddrinfo(str_buf, NULL, &hints, &listp)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-		strncpy(str_buf, "No such DNS\n", BUFFSIZE-1);
+		strncpy(str_buf, "No such DNS\n\n", BUFFSIZE-1);
 		if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 			ERR_EXIT("writing to socket");
 		}
@@ -141,7 +141,7 @@ void handle_DNS(int connfd, char *str_buf) {
 
 	freeaddrinfo(listp);
 
-	sprintf(str_buf, "address get from domain name : %s\n", domain);
+	sprintf(str_buf, "address get from domain name : %s\n\n", domain);
 	if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 		ERR_EXIT("writting to socket");
 	}
@@ -186,7 +186,7 @@ void handle_QUERY(int connfd, char *str_buf) {
 
 		if(strcmp(id, str_buf) == 0) {
 			flag = 1;
-			sprintf(str_buf, "Email get from server : %s\n", email);
+			sprintf(str_buf, "Email get from server : %s\n\n", email);
 			if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 			ERR_EXIT("writting to socket");
 			}
@@ -195,7 +195,7 @@ void handle_QUERY(int connfd, char *str_buf) {
 	}
 
 	if(!flag) {
-		strncpy(str_buf, "No such student ID\n", BUFFSIZE-1);
+		strncpy(str_buf, "No such student ID\n\n", BUFFSIZE-1);
 		if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 			ERR_EXIT("writting to socket");
 		}
