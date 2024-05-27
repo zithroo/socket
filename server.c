@@ -21,7 +21,7 @@ void handle_ERR(int connfd, char *str_buf);
 
 int main () {	
 	struct sockaddr_in myaddr, client_addr;	
-	int sockfd, connfd, port, status, addr_size, option = 1;	
+	int sockfd, connfd, port, status, addr_size, option = 1, pid;	
 	bzero(&myaddr, sizeof(myaddr));	
 	myaddr.sin_family = PF_INET;	
 	myaddr.sin_port = htons(1234);	
@@ -44,13 +44,23 @@ int main () {
 		if(connfd < 0) {
 			ERR_EXIT("accept");
 		}
-		printf("Connected %s, Waiting message ...\n", inet_ntoa(client_addr.sin_addr));
-
-	    handle_client(connfd);     // Call the procedure you wish to perform		
-		
-		printf("Disconnected %s \n", inet_ntoa(client_addr.sin_addr));
-	    close(connfd);
-			
+		pid = fork();
+		if(pid < 0) {
+			ERR_EXIT("fork");
+		}
+		if(pid == 0) {
+			// Child proccess, handle client req
+			close(sockfd);
+			printf("Connected %s, pid = %ld\n", inet_ntoa(client_addr.sin_addr), (long) getpid());
+	    	handle_client(connfd);     // Call the procedure you wish to perform		
+			printf("Disconnected %s, pid = %ld\n", inet_ntoa(client_addr.sin_addr), (long) getpid());
+	    	close(connfd);
+			exit(0);
+		}
+		else {
+			// Parent proccess, accept connection
+			close(connfd);
+		}
 	}
     return 0;
 }
@@ -74,7 +84,6 @@ void handle_client(int connfd) {
 			requirement = 4;
 			while (getchar() != '\n'); // flush
 		}
-		printf("reqirment = %d\n", requirement);
 		// handle requirement
 		switch (requirement)
 		{
@@ -98,12 +107,12 @@ void handle_client(int connfd) {
 		// Prevent server write -> read when client read (race)
 		// But there is always possible that delay > 0.3 sec QQ
 		sleep(0.3);
-		printf("done\n");
+		// printf("done\n");
 	}
 }
 
 void handle_DNS(int connfd, char *str_buf) {
-	printf("Request: DNS\n");
+	printf("Request: DNS, pid = %ld\n", (long) getpid());
 	// return status code
 	if(write(connfd, "1", 2) < 0) {
 		ERR_EXIT("writting to socket");
@@ -117,7 +126,7 @@ void handle_DNS(int connfd, char *str_buf) {
 	if(read(connfd, str_buf, BUFFSIZE) < 0) {
 		ERR_EXIT("reading from socket");
 	}
-	printf("Request: url = %s\n", str_buf);
+	printf("Request: url = %s, pid = %ld\n", str_buf, (long) getpid());
 
 	struct addrinfo hints, *p, *listp;
 	int status, flags;
@@ -136,7 +145,7 @@ void handle_DNS(int connfd, char *str_buf) {
 	flags = NI_NUMERICHOST;
 	for(p = listp; p; p = p->ai_next) {
 		getnameinfo(p->ai_addr, p->ai_addrlen, domain, BUFFSIZE, NULL, 0, flags);
-		printf("%s\n", domain);
+		// printf("%s\n", domain);
 	}
 
 	freeaddrinfo(listp);
@@ -148,7 +157,7 @@ void handle_DNS(int connfd, char *str_buf) {
 }
 
 void handle_QUERY(int connfd, char *str_buf) {
-	printf("Request: QUERY\n");
+	printf("Request: QUERY, pid = %ld\n", (long) getpid());
 	// return status code
 	if(write(connfd, "2", 2) < 0) {
 		ERR_EXIT("writting to socket");
@@ -168,7 +177,7 @@ void handle_QUERY(int connfd, char *str_buf) {
 	if(read(connfd, str_buf, BUFFSIZE) < 0) {
 		ERR_EXIT("reading from socket");
 	}
-	printf("Request: student ID = %s\n", str_buf);
+	printf("Request: student ID = %s, pid = %ld\n", str_buf, (long) getpid());
 
 	char line[128];
 	int flag = 0;
@@ -205,7 +214,7 @@ void handle_QUERY(int connfd, char *str_buf) {
 }
 
 void handle_QUIT(int connfd, char *str_buf) {
-	printf("Request: Quit\n");
+	printf("Request: Quit, pid = %ld\n", (long) getpid());
 	// return status code
 	if(write(connfd, "3", 2) < 0) {
 		ERR_EXIT("writting to socket");
@@ -213,7 +222,7 @@ void handle_QUIT(int connfd, char *str_buf) {
 }
 
 void handle_ERR(int connfd, char *str_buf) {
-	printf("Reject: requirement out of range\n");
+	printf("Reject: requirement out of range, pid = %ld\n", (long) getpid());
 	// return status code
 	if(write(connfd, "4", 2) < 0) {
 		ERR_EXIT("writting to socket");
