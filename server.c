@@ -14,7 +14,7 @@ enum req_type { DNS=1, QUERY, QUIT, ERR};
 
 void handle_client(int connfd);
 void handle_DNS(int connfd, char *str_buf);
-void handle_QUERY(int connfd, char *str_buf);
+void handle_QUERY(int connfd, char *str_buf, FILE *pFile);
 void handle_QUIT(int connfd, char *str_buf);
 void handle_ERR(int connfd, char *str_buf);
 
@@ -67,10 +67,17 @@ int main () {
 
 void handle_client(int connfd) {
 	char str_buf[BUFFSIZE];
-	int requirement;
+	int requirement, quit_flag = 1;
 	memset(str_buf, 0, sizeof(str_buf));
 	requirement = 4;
-	while(1) {
+	
+	FILE *pFile;
+	pFile = fopen("query.txt", "r");
+	if(pFile == NULL) {
+		ERR_EXIT("Open failure: query.txt");
+	}
+
+	while(quit_flag) {
 		strncpy(str_buf, "What's your requirement? 1.DNS 2.QUERY 3.QUIT : ", BUFFSIZE-1);
 		if(write(connfd, str_buf, strlen(str_buf)+1) < 0) {
 			ERR_EXIT("writting to socket");
@@ -92,12 +99,12 @@ void handle_client(int connfd) {
 		break;
 
 		case QUERY:
-			handle_QUERY(connfd, str_buf);
+			handle_QUERY(connfd, str_buf, pFile);
 		break;
 		
 		case QUIT:
 			handle_QUIT(connfd, str_buf);
-			return;
+			quit_flag = 0;
 		break;
 	
 		default:
@@ -109,6 +116,7 @@ void handle_client(int connfd) {
 		sleep(0.3);
 		// printf("done\n");
 	}
+	fclose(pFile);
 }
 
 void handle_DNS(int connfd, char *str_buf) {
@@ -156,17 +164,11 @@ void handle_DNS(int connfd, char *str_buf) {
 	}
 }
 
-void handle_QUERY(int connfd, char *str_buf) {
+void handle_QUERY(int connfd, char *str_buf, FILE *pFile) {
 	printf("Request: QUERY, pid = %ld\n", (long) getpid());
 	// return status code
 	if(write(connfd, "2", 2) < 0) {
 		ERR_EXIT("writting to socket");
-	}
-
-	FILE *pFile;
-	pFile = fopen("query.txt", "r");
-	if(pFile == NULL) {
-		ERR_EXIT("Open failure: query.txt");
 	}
 
 	strncpy(str_buf, "Input student ID : ", BUFFSIZE-1);
@@ -210,7 +212,6 @@ void handle_QUERY(int connfd, char *str_buf) {
 		}
 	}
 
-	fclose(pFile);
 }
 
 void handle_QUIT(int connfd, char *str_buf) {
